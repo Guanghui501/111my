@@ -96,9 +96,11 @@ python generate_classification_csv.py --test
 CSV文件内容示例:
 
 Id,Composition,prop,Description,File_Name
-1_0,SnO2,1,"SnO2 is Rutile structured and crystallizes in the tetragonal P4_2/mnm space group. The structure is three-dimensional...",SnO2.cif
-1_1,Fe2O3,1,"Fe2O3 is Corundum structured and crystallizes in the trigonal R-3c space group...",Fe2O3.cif
-0_0,SiO2,0,"SiO2 is Quartz structured and crystallizes in the trigonal P3_121 space group...",SiO2.cif
+0,SnO2,1,"SnO2 is Rutile structured and crystallizes in the tetragonal P4_2/mnm space group. The structure is three-dimensional...",SnO2.cif
+1,Fe2O3,1,"Fe2O3 is Corundum structured and crystallizes in the trigonal R-3c space group...",Fe2O3.cif
+2,SiO2,0,"SiO2 is Quartz structured and crystallizes in the trigonal P3_121 space group...",SiO2.cif
+
+注意: Id从0开始，按照数据处理顺序递增（先处理class1_dir，再处理class0_dir）
 
 ========================================================================
 注意事项

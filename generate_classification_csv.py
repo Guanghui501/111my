@@ -90,17 +90,16 @@ def process_single_file(args):
     处理单个CIF文件的包装函数（用于多进程）
 
     参数:
-        args: tuple (idx, cif_file, label)
+        args: tuple (cif_file, label)
 
     返回:
         dict 或 None
     """
-    idx, cif_file, label = args
+    cif_file, label = args
     composition, description = get_structure_description(str(cif_file))
 
     if composition and description:
         return {
-            'Id': f"{label}_{idx}",
             'Composition': composition,
             'prop': label,
             'Description': description,
@@ -134,7 +133,7 @@ def process_cif_directory(directory_path, label, workers=1):
         print(f"使用 {workers} 个进程并行处理...")
 
         # 准备参数列表
-        args_list = [(idx, cif_file, label) for idx, cif_file in enumerate(cif_files)]
+        args_list = [(cif_file, label) for cif_file in cif_files]
 
         # 使用多进程处理
         with Pool(processes=workers) as pool:
@@ -148,12 +147,11 @@ def process_cif_directory(directory_path, label, workers=1):
         data_list = [r for r in results if r is not None]
     else:
         # 单进程处理（原有逻辑）
-        for idx, cif_file in enumerate(tqdm(cif_files, desc=f"处理标签{label}的文件")):
+        for cif_file in tqdm(cif_files, desc=f"处理标签{label}的文件"):
             composition, description = get_structure_description(str(cif_file))
 
             if composition and description:
                 data_entry = {
-                    'Id': f"{label}_{idx}",
                     'Composition': composition,
                     'prop': label,
                     'Description': description,
@@ -200,6 +198,9 @@ def generate_classification_csv(class1_dir, class0_dir, output_file, workers=1):
 
     # 创建DataFrame
     df = pd.DataFrame(all_data)
+
+    # 添加从0开始的全局Id
+    df.insert(0, 'Id', range(len(df)))
 
     # 确保列的顺序
     df = df[['Id', 'Composition', 'prop', 'Description', 'File_Name']]
