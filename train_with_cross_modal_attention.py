@@ -377,15 +377,7 @@ def load_dataset(cif_dir, id_prop_file, dataset, property_name):
                 id, composition, target, crys_desc_full, _ = data[j]
             elif dataset.lower() == 'class':
                 # 分类数据集格式：id, target, description
-                # 处理可能有不同列数的情况
-                row = data[j]
-                if len(row) >= 3:
-                    id, target, crys_desc_full = row[0], row[1], row[2]
-                else:
-                    skipped += 1
-                    if skipped <= 5:
-                        print(f"跳过格式错误的行 {j}: 列数不足 (expected 3, got {len(row)})")
-                    continue
+                id, target, crys_desc_full = data[j]
                 composition = ''  # 分类任务不需要composition
             elif dataset.lower() == 'toy':
                 id, composition, target, crys_desc_full, _ = data[j]
