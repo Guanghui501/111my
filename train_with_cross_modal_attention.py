@@ -63,10 +63,10 @@ def get_parser():
     parser.add_argument('--root_dir', type=str, default='../dataset/',
                         help='数据集根目录（相对于当前目录或绝对路径）')
     parser.add_argument('--dataset', type=str, default='jarvis',
-                        choices=['jarvis', 'mp', 'toy'],
-                        help='数据集名称: jarvis, mp, toy')
+                        choices=['jarvis', 'mp', 'class', 'toy'],
+                        help='数据集名称: jarvis, mp, class (分类), toy')
     parser.add_argument('--property', type=str, default='formation_energy',
-                        help='预测的性质 (e.g., formation_energy, band_gap)')
+                        help='预测的性质 (回归: formation_energy, band_gap; 分类: syn, metal_oxide等)')
 
     # 预处理数据参数
     parser.add_argument('--use_preprocessed', type=bool, default=False,
@@ -217,6 +217,12 @@ def get_dataset_paths(root_dir, dataset, property_name):
             id_prop_file = os.path.join(root_dir, 'mp_2018_small/description.csv')
         else:
             raise ValueError(f"Unsupported property for MP dataset: {property_name}")
+
+    elif dataset.lower() == 'class':
+        # 分类数据集（类似jarvis结构）
+        # 例如：class/syn, class/metal_oxide, 等
+        cif_dir = os.path.join(root_dir, f'class/{property_name}/cif/')
+        id_prop_file = os.path.join(root_dir, f'class/{property_name}/description.csv')
 
     elif dataset.lower() == 'toy':
         # 玩具数据集（用于测试）
@@ -369,6 +375,10 @@ def load_dataset(cif_dir, id_prop_file, dataset, property_name):
                     id, composition, _, target, crys_desc_full, _ = data[j]
             elif dataset.lower() == 'jarvis':
                 id, composition, target, crys_desc_full, _ = data[j]
+            elif dataset.lower() == 'class':
+                # 分类数据集格式：id, target, description
+                id, target, crys_desc_full = data[j]
+                composition = ''  # 分类任务不需要composition
             elif dataset.lower() == 'toy':
                 id, composition, target, crys_desc_full, _ = data[j]
 
@@ -417,6 +427,7 @@ def create_config(args):
     dataset_mapping = {
         'jarvis': 'user_data',
         'mp': 'user_data',
+        'class': 'user_data',
         'toy': 'user_data',
         'user_data': 'user_data',
     }
