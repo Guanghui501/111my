@@ -1,0 +1,129 @@
+========================================================================
+分类CSV生成脚本 - 安装指南
+========================================================================
+
+本指南将帮助您安装运行 generate_classification_csv.py 所需的所有依赖项。
+
+========================================================================
+系统要求
+========================================================================
+
+- Python 3.10 或更高版本
+- pip (Python包管理器)
+
+检查您的Python版本:
+    python --version
+
+========================================================================
+安装步骤
+========================================================================
+
+方法一：使用 requirements 文件安装 (推荐)
+------------------------------------------
+
+1. 在项目目录中，运行以下命令安装所有依赖:
+
+   pip install -r requirements_classification.txt
+
+   注意: 这可能需要几分钟时间，因为需要安装多个包。
+
+
+方法二：手动安装核心包
+------------------------------------------
+
+如果方法一不起作用，可以逐个安装核心包:
+
+1. 安装核心依赖:
+   pip install pandas tqdm pymatgen inflect networkx
+
+2. 安装其他依赖:
+   pip install spglib scipy matminer monty pubchempy pybtex numpy
+
+
+方法三：使用 Conda (如果您使用 Anaconda/Miniconda)
+------------------------------------------
+
+1. 创建新的conda环境 (推荐):
+   conda create -n classification python=3.10
+   conda activate classification
+
+2. 安装核心包:
+   conda install -c conda-forge pandas tqdm pymatgen
+
+3. 安装其他依赖:
+   pip install inflect networkx matminer monty pubchempy pybtex
+
+4. (可选) 安装OpenBabel以获得更好的分子名称识别:
+   conda install -c conda-forge openbabel
+
+
+========================================================================
+验证安装
+========================================================================
+
+运行以下命令验证所有依赖是否正确安装:
+
+    python -c "import pandas; import tqdm; import pymatgen; print('所有核心依赖已成功安装!')"
+
+如果没有错误信息，说明安装成功！
+
+========================================================================
+测试脚本
+========================================================================
+
+安装完成后，测试脚本是否能正常运行:
+
+1. 查看帮助信息:
+   python generate_classification_csv.py --help
+
+2. 查看测试模式:
+   python generate_classification_csv.py --test
+
+========================================================================
+常见问题
+========================================================================
+
+问题1: "No module named 'xxx'" 错误
+解决: 使用 pip install xxx 安装缺失的模块
+
+问题2: pymatgen 安装失败
+解决: 尝试使用 conda 安装:
+      conda install -c conda-forge pymatgen
+
+问题3: 权限错误
+解决: 使用 --user 标志:
+      pip install --user -r requirements_classification.txt
+
+问题4: 网络问题导致安装失败
+解决: 使用国内镜像源 (中国用户):
+      pip install -i https://pypi.tuna.tsinghua.edu.cn/simple -r requirements_classification.txt
+
+========================================================================
+安装后使用
+========================================================================
+
+安装完成后，请参阅以下文件了解如何使用脚本:
+
+1. CLASSIFICATION_CSV_README.txt  - 详细使用说明
+2. example_usage.sh                - 使用示例
+3. 直接运行脚本查看帮助:
+   python generate_classification_csv.py --help
+
+========================================================================
+技术支持
+========================================================================
+
+如果遇到安装问题:
+1. 确保您的Python版本 >= 3.10
+2. 确保pip已更新: pip install --upgrade pip
+3. 检查是否有足够的磁盘空间 (建议至少1GB)
+4. 尝试在虚拟环境中安装
+
+创建虚拟环境 (推荐):
+    python -m venv classification_env
+    source classification_env/bin/activate  # Linux/Mac
+    # 或
+    classification_env\Scripts\activate  # Windows
+    pip install -r requirements_classification.txt
+
+========================================================================
