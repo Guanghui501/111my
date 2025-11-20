@@ -149,7 +149,7 @@ def main():
 
         # 直接创建数据加载器，不使用TrainingConfig（避免dataset限制）
         (train_loader, val_loader, test_loader,
-         train_data, val_data, test_data) = get_train_val_loaders(
+         prepare_batch) = get_train_val_loaders(
             dataset='user_data',  # 使用user_data避免dataset限制
             dataset_array=df,
             target='target',
@@ -174,6 +174,11 @@ def main():
             max_neighbors=12,
             output_dir=args.output_dir,
         )
+
+        # 获取数据集对象
+        train_data = train_loader.dataset
+        val_data = val_loader.dataset
+        test_data = test_loader.dataset
 
         # 选择要可视化的split
         if args.split == 'train':
