@@ -1,0 +1,289 @@
+========================================================================
+分类任务训练指南
+========================================================================
+
+本指南说明如何使用生成的分类CSV文件进行晶体材料分类任务的训练
+
+目录:
+1. 数据准备
+2. 快速开始
+3. 训练配置
+4. 高级用法
+5. 结果分析
+
+========================================================================
+1. 数据准备
+========================================================================
+
+首先，确保您已经使用 generate_classification_csv.py 生成了分类CSV文件：
+
+python generate_classification_csv.py \
+    --class1_dir ./positive_samples \
+    --class0_dir ./negative_samples \
+    --output classification_data.csv \
+    --workers 4
+
+生成的CSV文件格式：
+  Id, Composition, prop, Description, File_Name
+
+其中：
+  - Id: 0, 1, 2, 3, ... (连续编号)
+  - Composition: 化学组成 (如 SnO2, Fe2O3)
+  - prop: 分类标签 (1 或 0)
+  - Description: robocrystallographer生成的结构描述
+  - File_Name: 原始CIF文件名
+
+========================================================================
+2. 快速开始 - 基础分类训练
+========================================================================
+
+2.1 准备数据JSON文件
+-------------------
+将CSV转换为JSON格式（代码库需要JSON格式）：
+
+python convert_csv_to_json.py \
+    --csv_file classification_data.csv \
+    --output_json classification_data.json \
+    --cif_dir ./all_cifs
+
+注意：all_cifs 目录应包含所有CIF文件（class1和class0的合并）
+
+2.2 基础训练命令
+--------------
+使用train_with_cross_modal_attention.py进行分类训练：
+
+python train_with_cross_modal_attention.py \
+    --dataset user_data \
+    --property classification \
+    --root_dir ./dataset \
+    --classification 1 \
+    --classification_threshold 0.5 \
+    --batch_size 32 \
+    --epochs 500 \
+    --learning_rate 0.001 \
+    --use_cross_modal True \
+    --output_dir ./output_classification
+
+关键参数说明：
+  --classification 1          # 启用分类模式（必须）
+  --classification_threshold  # 分类阈值，默认0.5
+  --use_cross_modal True      # 使用跨模态注意力（结构+文本）
+
+========================================================================
+3. 训练配置详解
+========================================================================
+
+3.1 分类任务特定参数
+-------------------
+--classification 1                     # 启用分类模式
+--classification_threshold 0.5         # 分类决策阈值
+--criterion bce                        # 使用BCE损失（二元交叉熵）
+
+3.2 模型架构参数
+--------------
+# ALIGNN图神经网络层
+--alignn_layers 4                      # ALIGNN层数
+--gcn_layers 4                         # GCN层数
+--hidden_features 256                  # 隐藏层维度
+
+# 跨模态注意力（晚期融合）
+--use_cross_modal True                 # 启用跨模态注意力
+--cross_modal_num_heads 4              # 注意力头数（1/2/4/8）
+--cross_modal_hidden_dim 256           # 注意力隐藏层维度
+--cross_modal_dropout 0.1              # Dropout率
+
+# 中期融合（可选）
+--use_middle_fusion False              # 是否使用中期融合
+--middle_fusion_layers 2               # 注入层索引
+
+# 细粒度注意力（可选，高级功能）
+--use_fine_grained_attention False     # 原子-文本token级注意力
+--fine_grained_num_heads 8             # 细粒度注意力头数
+
+3.3 训练参数
+----------
+--batch_size 32                        # 批次大小
+--epochs 500                           # 训练轮数
+--learning_rate 0.001                  # 学习率
+--weight_decay 1e-5                    # 权重衰减
+--early_stopping_patience 50           # Early stopping
+
+3.4 数据划分
+----------
+# 方式1: 按比例划分
+--train_ratio 0.8
+--val_ratio 0.1
+--test_ratio 0.1
+
+# 方式2: 指定样本数
+--n_train 800
+--n_val 100
+--n_test 100
+
+========================================================================
+4. 高级用法示例
+========================================================================
+
+4.1 简单分类（仅使用结构信息）
+----------------------------
+python train_with_cross_modal_attention.py \
+    --dataset user_data \
+    --classification 1 \
+    --use_cross_modal False \
+    --batch_size 64 \
+    --epochs 500 \
+    --output_dir ./output_structure_only
+
+4.2 结构+文本分类（推荐）
+-----------------------
+python train_with_cross_modal_attention.py \
+    --dataset user_data \
+    --classification 1 \
+    --use_cross_modal True \
+    --cross_modal_num_heads 4 \
+    --batch_size 32 \
+    --epochs 500 \
+    --learning_rate 0.001 \
+    --output_dir ./output_multimodal
+
+4.3 完整配置（所有融合机制）
+--------------------------
+python train_with_cross_modal_attention.py \
+    --dataset user_data \
+    --classification 1 \
+    --use_cross_modal True \
+    --cross_modal_num_heads 8 \
+    --use_middle_fusion True \
+    --middle_fusion_layers "2,3" \
+    --use_fine_grained_attention True \
+    --fine_grained_num_heads 8 \
+    --batch_size 16 \
+    --epochs 1000 \
+    --learning_rate 0.0005 \
+    --weight_decay 1e-4 \
+    --early_stopping_patience 100 \
+    --output_dir ./output_full_fusion
+
+4.4 对比学习增强（实验性）
+------------------------
+python train_with_cross_modal_attention.py \
+    --dataset user_data \
+    --classification 1 \
+    --use_cross_modal True \
+    --use_contrastive True \
+    --contrastive_weight 0.1 \
+    --contrastive_temperature 0.1 \
+    --output_dir ./output_contrastive
+
+========================================================================
+5. 结果分析
+========================================================================
+
+5.1 训练输出文件
+--------------
+训练完成后，output目录包含：
+
+output_classification/
+├── config.json                # 训练配置
+├── checkpoint_best.pt         # 最佳模型权重
+├── checkpoint_last.pt         # 最后一轮权重
+├── train_predictions.csv      # 训练集预测结果
+├── val_predictions.csv        # 验证集预测结果
+├── test_predictions.csv       # 测试集预测结果
+└── training_log.txt           # 训练日志
+
+5.2 分类指标
+-----------
+训练过程中会输出以下指标：
+
+- Loss: 损失函数值（BCE Loss）
+- Accuracy: 准确率
+- Precision: 精确率
+- Recall: 召回率
+
+分类阈值默认为0.5：
+  - 预测概率 > 0.5 → 类别1
+  - 预测概率 ≤ 0.5 → 类别0
+
+5.3 查看预测结果
+--------------
+test_predictions.csv 格式：
+  id, target, prediction
+  0, 1, 0.92
+  1, 0, 0.15
+  2, 1, 0.88
+  ...
+
+计算准确率：
+  accuracy = (预测正确的样本数) / (总样本数)
+
+========================================================================
+6. 性能优化建议
+========================================================================
+
+6.1 针对小数据集（<1000样本）
+---------------------------
+- 使用较小的batch_size: 16-32
+- 增加weight_decay: 1e-4
+- 使用dropout: 0.2-0.3
+- 减少模型层数: alignn_layers=2, gcn_layers=2
+
+6.2 针对大数据集（>10000样本）
+----------------------------
+- 增加batch_size: 64-128
+- 降低weight_decay: 1e-5或1e-6
+- 使用更深的网络: alignn_layers=6, gcn_layers=6
+- 考虑使用数据增强
+
+6.3 类别不平衡问题
+----------------
+如果类别0和类别1的样本数差异很大：
+
+方法1: 调整分类阈值
+  --classification_threshold 0.3  # 如果正类样本少
+  --classification_threshold 0.7  # 如果负类样本少
+
+方法2: 使用加权损失（需要修改代码）
+方法3: 过采样/欠采样数据
+
+========================================================================
+7. 常见问题
+========================================================================
+
+Q1: 如何判断模型是否过拟合？
+A: 观察训练集和验证集的指标：
+   - 训练准确率 >> 验证准确率 → 过拟合
+   - 解决方法：增加dropout，增加weight_decay，减少模型复杂度
+
+Q2: 准确率一直在50%左右？
+A: 可能原因：
+   - 模型没有学到有效特征 → 检查数据质量
+   - 学习率过大 → 降低learning_rate
+   - 分类任务本身困难 → 增加训练轮数，调整模型
+
+Q3: 是否必须使用文本描述？
+A: 不是必须的。设置 --use_cross_modal False 可以仅使用结构信息。
+   但使用文本描述通常能提升性能。
+
+Q4: 训练速度太慢？
+A: 优化建议：
+   - 增加batch_size
+   - 减少注意力头数
+   - 关闭不必要的融合机制
+   - 使用GPU加速
+
+========================================================================
+8. 下一步
+========================================================================
+
+1. 尝试不同的超参数组合
+2. 进行消融实验（对比有无文本、不同融合方式）
+3. 分析模型的注意力权重（可解释性）
+4. 在其他分类任务上测试模型泛化性
+
+========================================================================
+相关文件：
+- generate_classification_csv.py: 生成分类CSV
+- train_with_cross_modal_attention.py: 训练脚本
+- convert_csv_to_json.py: CSV转JSON工具（需要创建）
+========================================================================
