@@ -299,6 +299,17 @@ def plot_comparison(embeddings_dict, targets, method, save_path, is_classificati
         'fused': 'Fused Features (Graph + Text)'
     }
 
+    # 计算所有嵌入的全局坐标范围，用于统一横纵坐标
+    all_embeddings = np.vstack(list(embeddings_dict.values()))
+    x_min, x_max = all_embeddings[:, 0].min(), all_embeddings[:, 0].max()
+    y_min, y_max = all_embeddings[:, 1].min(), all_embeddings[:, 1].max()
+
+    # 添加10%的padding
+    x_margin = (x_max - x_min) * 0.1
+    y_margin = (y_max - y_min) * 0.1
+    x_lim = [x_min - x_margin, x_max + x_margin]
+    y_lim = [y_min - y_margin, y_max + y_margin]
+
     for idx, (feat_type, embedded) in enumerate(embeddings_dict.items()):
         ax = axes[idx]
 
@@ -321,6 +332,10 @@ def plot_comparison(embeddings_dict, targets, method, save_path, is_classificati
             if idx == n_plots - 1:  # 只在最后一个子图添加colorbar
                 cbar = plt.colorbar(scatter, ax=ax)
                 cbar.set_label('Target Value', rotation=270, labelpad=15)
+
+        # 统一设置横纵坐标范围
+        ax.set_xlim(x_lim)
+        ax.set_ylim(y_lim)
 
         ax.set_xlabel('Dimension 1')
         ax.set_ylabel('Dimension 2')
