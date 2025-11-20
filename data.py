@@ -229,7 +229,7 @@ def get_train_val_loaders(dataset: str = "dft_3d",dataset_array=[],target: str =
         # use a regular pytorch dataloader
         train_loader = DataLoader(train_data,batch_size=batch_size,shuffle=True,collate_fn=collate_fn,drop_last=True,num_workers=workers,pin_memory=pin_memory)
 
-        val_loader = DataLoader(val_data,batch_size=batch_size,shuffle=False,collate_fn=collate_fn,drop_last=True,num_workers=workers,pin_memory=pin_memory)
+        val_loader = DataLoader(val_data,batch_size=batch_size,shuffle=False,collate_fn=collate_fn,drop_last=False,num_workers=workers,pin_memory=pin_memory)
 
         test_loader = DataLoader(test_data,batch_size=batch_size,shuffle=False,collate_fn=collate_fn,drop_last=False,num_workers=workers,pin_memory=pin_memory)
 

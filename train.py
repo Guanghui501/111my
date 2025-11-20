@@ -243,7 +243,8 @@ def train_dgl(config: Union[TrainingConfig, Dict[str, Any]], model: nn.Module = 
         # Classification metrics
         def thresholded_output_transform(output):
             y_pred, y = output
-            y_pred = (y_pred > 0.5).float()
+            y_pred = (y_pred > 0.5).long()  # Convert to long for binary classification metrics
+            y = y.long()  # Ensure targets are also long
             return y_pred, y
 
         metrics = {
