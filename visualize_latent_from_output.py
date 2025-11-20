@@ -143,7 +143,9 @@ def main():
         # 如果设置了max_samples，进行采样
         if args.max_samples and len(df) > args.max_samples:
             print(f"⚠️  数据集过大，随机采样 {args.max_samples} 样本用于可视化")
-            df = df.sample(n=args.max_samples, random_state=42)
+            import random
+            random.seed(42)
+            df = random.sample(df, args.max_samples)
 
         # 直接创建数据加载器，不使用TrainingConfig（避免dataset限制）
         (train_loader, val_loader, test_loader,
