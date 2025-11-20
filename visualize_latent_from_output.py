@@ -145,11 +145,10 @@ def main():
             print(f"⚠️  数据集过大，随机采样 {args.max_samples} 样本用于可视化")
             df = df.sample(n=args.max_samples, random_state=42)
 
-        # 创建临时配置
-        from config import TrainingConfig
-
-        temp_config = TrainingConfig(
-            dataset=args.dataset,
+        # 直接创建数据加载器，不使用TrainingConfig（避免dataset限制）
+        (train_loader, val_loader, test_loader,
+         train_data, val_data, test_data) = get_train_val_loaders(
+            dataset_array=df,
             target='target',
             n_train=None,
             n_val=None,
@@ -158,37 +157,18 @@ def main():
             val_ratio=0.1,
             test_ratio=0.1,
             batch_size=args.batch_size,
-            workers=args.num_workers,
-            pin_memory=False,
-            save_dataloader=False,
-            output_dir=args.output_dir,
-            classification=is_classification,
-        )
-
-        # 创建数据加载器
-        (train_loader, val_loader, test_loader,
-         train_data, val_data, test_data) = get_train_val_loaders(
-            dataset_array=df,
-            target='target',
-            n_train=temp_config.n_train,
-            n_val=temp_config.n_val,
-            n_test=temp_config.n_test,
-            train_ratio=temp_config.train_ratio,
-            val_ratio=temp_config.val_ratio,
-            test_ratio=temp_config.test_ratio,
-            batch_size=temp_config.batch_size,
             atom_features=model_config.atom_features if hasattr(model_config, 'atom_features') else 'cgcnn',
             neighbor_strategy='k-nearest',
             standardize=False,
             line_graph=model_config.line_graph if hasattr(model_config, 'line_graph') else True,
-            split_seed=temp_config.random_seed,
-            workers=temp_config.workers,
-            pin_memory=temp_config.pin_memory,
+            split_seed=42,
+            workers=args.num_workers,
+            pin_memory=False,
             save_dataloader=False,
-            filename='temp',
+            filename='temp_vis',
             id_tag='jid',
             classification=is_classification,
-            output_dir=temp_config.output_dir,
+            output_dir=args.output_dir,
         )
 
         # 选择要可视化的split
