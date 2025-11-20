@@ -176,7 +176,7 @@ def apply_dimensionality_reduction(features, method='tsne', n_components=2, **kw
         default_params = {
             'n_components': n_components,
             'perplexity': min(30, len(features) - 1),
-            'n_iter': 1000,
+            'max_iter': 1000,  # 新版sklearn使用max_iter而不是n_iter
             'random_state': 42,
             'verbose': 0
         }
