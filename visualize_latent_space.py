@@ -88,9 +88,22 @@ def extract_features(model, data_loader, device='cpu', feature_types=['fused']):
                 raise ValueError(f"不支持的batch格式: {len(batch)}个元素")
 
             g = g.to(device)
+
+            # 处理text输入（可能是dict, tensor, 或list）
             if isinstance(text, dict):
                 text = {k: v.to(device) for k, v in text.items()}
-            else:
+            elif isinstance(text, (list, tuple)):
+                # 如果是list/tuple，每个元素可能是tensor
+                text_processed = []
+                for item in text:
+                    if isinstance(item, dict):
+                        text_processed.append({k: v.to(device) for k, v in item.items()})
+                    elif torch.is_tensor(item):
+                        text_processed.append(item.to(device))
+                    else:
+                        text_processed.append(item)
+                text = text_processed
+            elif torch.is_tensor(text):
                 text = text.to(device)
 
             # Forward pass with return_features=True
