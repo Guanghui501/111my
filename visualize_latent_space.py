@@ -231,7 +231,7 @@ def plot_2d_embedding(embedded, targets, title, save_path, is_classification=Fal
     ax.set_xlabel('Dimension 1')
     ax.set_ylabel('Dimension 2')
     ax.set_title(title)
-    ax.grid(True, alpha=0.3)
+    # ax.grid(True, alpha=0.3)  # 去掉背景网格线
 
     plt.tight_layout()
     plt.savefig(save_path, dpi=300, bbox_inches='tight')
@@ -340,7 +340,7 @@ def plot_comparison(embeddings_dict, targets, method, save_path, is_classificati
         ax.set_xlabel('Dimension 1')
         ax.set_ylabel('Dimension 2')
         ax.set_title(titles.get(feat_type, feat_type))
-        ax.grid(True, alpha=0.3)
+        # ax.grid(True, alpha=0.3)  # 去掉背景网格线
 
     plt.suptitle(f'Latent Space Comparison ({method.upper()})', fontsize=16, y=1.02)
     plt.tight_layout()
