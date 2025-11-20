@@ -106,8 +106,19 @@ def extract_features(model, data_loader, device='cpu', feature_types=['fused']):
             elif torch.is_tensor(text):
                 text = text.to(device)
 
+            # Pack inputs for ALIGNN model
+            # ALIGNN expects: (g, lg, text) or just g depending on batch format
+            if len(batch) == 4:
+                # Batch format: (g, lg, text, target)
+                # Model expects: forward((g, lg, text), return_features=True)
+                model_input = (g, batch[1].to(device), text)
+            else:
+                # Batch format: (g, text, target)
+                # Model expects: forward((g, text), return_features=True)
+                model_input = (g, text)
+
             # Forward pass with return_features=True
-            output = model(g, text, return_features=True)
+            output = model(model_input, return_features=True)
 
             if isinstance(output, dict):
                 # 提取不同类型的特征
