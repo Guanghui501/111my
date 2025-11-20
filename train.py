@@ -347,9 +347,21 @@ def train_dgl(config: Union[TrainingConfig, Dict[str, Any]], model: nn.Module = 
     # apply learning rate scheduler
     trainer.add_event_handler(Events.ITERATION_COMPLETED, lambda engine: scheduler.step())
 
-    best_loss = float('inf')
-    best_val_mae = float('inf')
-    best_test_mae = float('inf')
+    # Setup metric tracking based on task type
+    if classification:
+        # For classification, track accuracy (higher is better)
+        metric_name = 'accuracy'
+        best_val_metric = 0.0
+        best_test_metric = 0.0
+        best_loss = float('inf')
+        metric_better = lambda new, old: new > old  # Higher is better
+    else:
+        # For regression, track MAE (lower is better)
+        metric_name = 'mae'
+        best_val_metric = float('inf')
+        best_test_metric = float('inf')
+        best_loss = float('inf')
+        metric_better = lambda new, old: new < old  # Lower is better
 
     # Early stopping setup
     early_stopping_patience = config.n_early_stopping
@@ -422,55 +434,64 @@ def train_dgl(config: Union[TrainingConfig, Dict[str, Any]], model: nn.Module = 
         if config.progress:
             pbar = ProgressBar()
             pbar.log_message(f"Epoch: {engine.state.epoch:.1f}")
-            pbar.log_message(f"Train_MAE: {tmetrics['mae']:.4f}")
-            pbar.log_message(f"Val_MAE: {vmetrics['mae']:.4f}")
-            pbar.log_message(f"Test_MAE: {tstmetrics['mae']:.4f}")
+            if classification:
+                pbar.log_message(f"Train_Acc: {tmetrics['accuracy']:.4f}")
+                pbar.log_message(f"Val_Acc: {vmetrics['accuracy']:.4f}")
+                pbar.log_message(f"Test_Acc: {tstmetrics['accuracy']:.4f}")
+                if 'precision' in tmetrics:
+                    pbar.log_message(f"Val_Precision: {vmetrics['precision']:.4f}, Val_Recall: {vmetrics['recall']:.4f}")
+            else:
+                pbar.log_message(f"Train_MAE: {tmetrics['mae']:.4f}")
+                pbar.log_message(f"Val_MAE: {vmetrics['mae']:.4f}")
+                pbar.log_message(f"Test_MAE: {tstmetrics['mae']:.4f}")
 
-        nonlocal best_loss, best_val_mae, best_test_mae, epochs_without_improvement
+        nonlocal best_loss, best_val_metric, best_test_metric, epochs_without_improvement
 
         # Save best validation model
         improved = False
-        if vmetrics['mae'] < best_val_mae:
-            best_val_mae = vmetrics['mae']
+        if metric_better(vmetrics[metric_name], best_val_metric):
+            best_val_metric = vmetrics[metric_name]
             best_val_checkpoint = {
                 "model": net.state_dict(),
                 "config": model_config,  # Save model config (ALIGNNConfig)
                 "optimizer": optimizer.state_dict(),
                 "lr_scheduler": scheduler.state_dict(),
                 "epoch": engine.state.epoch,
-                "val_mae": best_val_mae,
+                f"val_{metric_name}": best_val_metric,
             }
             torch.save(best_val_checkpoint, os.path.join(config.output_dir, "best_val_model.pt"))
-            print(f"✅ Saved best val model (MAE: {best_val_mae:.4f}) at epoch {engine.state.epoch}")
+            metric_display = f"{metric_name.upper()}: {best_val_metric:.4f}"
+            print(f"✅ Saved best val model ({metric_display}) at epoch {engine.state.epoch}")
             improved = True
             epochs_without_improvement = 0
 
         # Save best test model
-        if tstmetrics['mae'] < best_test_mae:
-            best_test_mae = tstmetrics['mae']
+        if metric_better(tstmetrics[metric_name], best_test_metric):
+            best_test_metric = tstmetrics[metric_name]
             best_test_checkpoint = {
                 "model": net.state_dict(),
                 "config": model_config,  # Save model config (ALIGNNConfig)
                 "optimizer": optimizer.state_dict(),
                 "lr_scheduler": scheduler.state_dict(),
                 "epoch": engine.state.epoch,
-                "test_mae": best_test_mae,
+                f"test_{metric_name}": best_test_metric,
             }
             torch.save(best_test_checkpoint, os.path.join(config.output_dir, "best_test_model.pt"))
-            print(f"✅ Saved best test model (MAE: {best_test_mae:.4f}) at epoch {engine.state.epoch}")
+            metric_display = f"{metric_name.upper()}: {best_test_metric:.4f}"
+            print(f"✅ Saved best test model ({metric_display}) at epoch {engine.state.epoch}")
 
-        if tstmetrics['mae'] < best_loss:
-            best_loss = tstmetrics['mae']
+        if vmetrics['loss'] < best_loss:
+            best_loss = vmetrics['loss']
 
         # Early stopping check
         if not improved:
             epochs_without_improvement += 1
             if early_stopping_patience and epochs_without_improvement >= early_stopping_patience:
                 print(f"\n⏹️ Early stopping triggered! No improvement for {early_stopping_patience} epochs.")
-                print(f"Best Val MAE: {best_val_mae:.4f}")
+                print(f"Best Val {metric_name.upper()}: {best_val_metric:.4f}")
                 trainer.terminate()
 
-        print(f"Best_val_mae: {best_val_mae:.4f}, Best_test_mae: {best_test_mae:.4f}")
+        print(f"Best_val_{metric_name}: {best_val_metric:.4f}, Best_test_{metric_name}: {best_test_metric:.4f}")
         if early_stopping_patience:
             print(f"Epochs without improvement: {epochs_without_improvement}/{early_stopping_patience}")
         print("\n")
@@ -482,8 +503,12 @@ def train_dgl(config: Union[TrainingConfig, Dict[str, Any]], model: nn.Module = 
     print("\n" + "="*80)
     print("🎯 Training Complete!")
     print("="*80)
-    print(f"Best Validation MAE: {best_val_mae:.4f}")
-    print(f"Best Test MAE: {best_test_mae:.4f}")
+    if classification:
+        print(f"Best Validation Accuracy: {best_val_metric:.4f}")
+        print(f"Best Test Accuracy: {best_test_metric:.4f}")
+    else:
+        print(f"Best Validation MAE: {best_val_metric:.4f}")
+        print(f"Best Test MAE: {best_test_metric:.4f}")
     print(f"\nCheckpoints saved:")
     print(f"  - best_val_model.pt")
     print(f"  - best_test_model.pt")
