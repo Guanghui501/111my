@@ -122,7 +122,7 @@ def main():
 
     try:
         # 导入数据加载函数
-        from train_with_cross_modal_attention import load_dataset
+        from train_with_cross_modal_attention import load_dataset, get_dataset_paths
 
         # 根据数据集类型确定路径
         dataset_mapping = {
@@ -133,8 +133,11 @@ def main():
 
         actual_dataset = dataset_mapping.get(args.dataset.lower(), args.dataset.lower())
 
+        # 获取数据集路径
+        cif_dir, id_prop_file = get_dataset_paths(args.root_dir, actual_dataset, args.property)
+
         # 加载数据集
-        df = load_dataset(actual_dataset, args.property, args.root_dir)
+        df = load_dataset(cif_dir, id_prop_file, actual_dataset, args.property)
         print(f"✅ 加载数据集: {len(df)} 样本")
 
         # 如果设置了max_samples，进行采样
