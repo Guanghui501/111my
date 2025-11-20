@@ -101,7 +101,7 @@ def main():
 
     # 1. 加载模型
     print("📥 加载模型...")
-    checkpoint = torch.load(checkpoint_path, map_location='cpu')
+    checkpoint = torch.load(checkpoint_path, map_location='cpu', weights_only=False)
     model_config = checkpoint.get('config', None)
 
     if model_config is None:

@@ -38,7 +38,7 @@ plt.rcParams['figure.titlesize'] = 16
 
 def load_model_and_data(checkpoint_path, config_file=None):
     """加载模型和配置"""
-    checkpoint = torch.load(checkpoint_path, map_location='cpu')
+    checkpoint = torch.load(checkpoint_path, map_location='cpu', weights_only=False)
 
     # 从checkpoint中恢复模型配置
     model_config = checkpoint.get('config', None)
@@ -437,7 +437,7 @@ if __name__ == '__main__':
     # 加载data loader
     print(f"📥 加载数据...")
     if os.path.exists(args.data_loader_path):
-        data_loader = torch.load(args.data_loader_path)
+        data_loader = torch.load(args.data_loader_path, weights_only=False)
         print(f"✅ 从文件加载data loader: {args.data_loader_path}")
     else:
         print(f"❌ 未找到data loader文件: {args.data_loader_path}")
