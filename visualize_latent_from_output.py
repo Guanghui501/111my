@@ -150,6 +150,7 @@ def main():
         # 直接创建数据加载器，不使用TrainingConfig（避免dataset限制）
         (train_loader, val_loader, test_loader,
          train_data, val_data, test_data) = get_train_val_loaders(
+            dataset='user_data',  # 使用user_data避免dataset限制
             dataset_array=df,
             target='target',
             n_train=None,
@@ -161,7 +162,6 @@ def main():
             batch_size=args.batch_size,
             atom_features=model_config.atom_features if hasattr(model_config, 'atom_features') else 'cgcnn',
             neighbor_strategy='k-nearest',
-            standardize=False,
             line_graph=model_config.line_graph if hasattr(model_config, 'line_graph') else True,
             split_seed=42,
             workers=args.num_workers,
@@ -169,7 +169,9 @@ def main():
             save_dataloader=False,
             filename='temp_vis',
             id_tag='jid',
-            classification=is_classification,
+            use_canonize=True,
+            cutoff=8.0,
+            max_neighbors=12,
             output_dir=args.output_dir,
         )
 
