@@ -28,8 +28,8 @@ except ImportError:
     UMAP_AVAILABLE = False
     print("⚠️  UMAP未安装，将仅使用t-SNE。安装方法: pip install umap-learn")
 
-# 设置绘图风格
-sns.set_style("whitegrid")
+# 设置绘图风格（使用white样式，不带网格线）
+sns.set_style("white")
 plt.rcParams['font.size'] = 11
 plt.rcParams['axes.labelsize'] = 12
 plt.rcParams['axes.titlesize'] = 14
