@@ -228,10 +228,11 @@ def plot_training_curves_comparison(ablation_dir, save_dir):
     """对比不同配置的训练曲线"""
 
     exp_dirs = [
-        ('exp3_cross_modal', 'Cross-Modal Only', '#2ca02c'),
-        ('exp4_middle_fusion', '+Middle Fusion', '#1f77b4'),
-        ('exp5_fine_grained', '+Fine-Grained', '#9467bd'),
-        ('exp6_full_model', 'Full Model', '#e377c2'),
+        ('exp1_text_concat_baseline', 'Baseline', '#d62728'),
+        ('exp2_late_fusion', 'Late Fusion', '#2ca02c'),
+        ('exp3_middle_fusion', '+Middle Fusion', '#1f77b4'),
+        ('exp4_fine_grained', '+Fine-Grained', '#9467bd'),
+        ('exp5_full_model', 'Full Model', '#e377c2'),
     ]
 
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 6))

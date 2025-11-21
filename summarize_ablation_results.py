@@ -107,38 +107,32 @@ def summarize_ablation_experiments(ablation_dir):
 
     # 实验配置映射
     exp_configs = {
-        'exp1_alignn_only': {
-            'name': 'Exp-1: ALIGNN Only',
+        'exp1_text_concat_baseline': {
+            'name': 'Exp-1: Text Simple Concat (Baseline)',
             'cross_modal': '❌',
             'middle_fusion': '❌',
             'fine_grained': '❌',
         },
-        'exp2_text_concat': {
-            'name': 'Exp-2: +Text (Concat)',
-            'cross_modal': '❌',
-            'middle_fusion': '❌',
-            'fine_grained': '❌',
-        },
-        'exp3_cross_modal': {
-            'name': 'Exp-3: +Cross-Modal',
+        'exp2_late_fusion': {
+            'name': 'Exp-2: +Late Fusion',
             'cross_modal': '✅',
             'middle_fusion': '❌',
             'fine_grained': '❌',
         },
-        'exp4_middle_fusion': {
-            'name': 'Exp-4: +Middle Fusion',
+        'exp3_middle_fusion': {
+            'name': 'Exp-3: +Middle Fusion (创新1)',
             'cross_modal': '✅',
             'middle_fusion': '✅',
             'fine_grained': '❌',
         },
-        'exp5_fine_grained': {
-            'name': 'Exp-5: +Fine-Grained',
+        'exp4_fine_grained': {
+            'name': 'Exp-4: +Fine-Grained (创新2)',
             'cross_modal': '✅',
             'middle_fusion': '❌',
             'fine_grained': '✅',
         },
-        'exp6_full_model': {
-            'name': 'Exp-6: Full Model',
+        'exp5_full_model': {
+            'name': 'Exp-5: Full Model',
             'cross_modal': '✅',
             'middle_fusion': '✅',
             'fine_grained': '✅',
