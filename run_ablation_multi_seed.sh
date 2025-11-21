@@ -1,8 +1,8 @@
 #!/bin/bash
 
 # ============================================================================
-# 消融实验自动化脚本（多种子版本 - 串行执行）
-# 运行4个实验配置 × 3个随机种子 = 12个训练任务
+# 消融实验自动化脚本（多种子版本 - 串行执行，包括Full Model）
+# 运行5个实验配置 × 3个随机种子 = 15个训练任务
 # 任务一个接一个执行，避免GPU资源冲突
 # ============================================================================
 
@@ -65,11 +65,16 @@ mkdir -p "$BASE_OUTPUT_DIR"
 MAIN_LOG="$BASE_OUTPUT_DIR/launch_log_$(date +%Y%m%d_%H%M%S).txt"
 
 echo "============================================================================" | tee -a "$MAIN_LOG"
-echo "🚀 启动消融实验（多种子版本 - 串行执行）" | tee -a "$MAIN_LOG"
+echo "🚀 启动消融实验（多种子版本 - 串行执行，包括Full Model）" | tee -a "$MAIN_LOG"
 echo "============================================================================" | tee -a "$MAIN_LOG"
 echo "时间: $(date)" | tee -a "$MAIN_LOG"
 echo "数据集: $DATASET/$PROPERTY" | tee -a "$MAIN_LOG"
-echo "实验配置: 4个实验 × 3个种子 = 12个训练任务" | tee -a "$MAIN_LOG"
+echo "实验配置: 5个实验 × 3个种子 = 15个训练任务" | tee -a "$MAIN_LOG"
+echo "  - Exp-1: Baseline" | tee -a "$MAIN_LOG"
+echo "  - Exp-2: +Late Fusion" | tee -a "$MAIN_LOG"
+echo "  - Exp-3: +Middle Fusion (创新1)" | tee -a "$MAIN_LOG"
+echo "  - Exp-4: +Fine-Grained (创新2)" | tee -a "$MAIN_LOG"
+echo "  - Exp-5: Full Model (所有模块)" | tee -a "$MAIN_LOG"
 echo "执行模式: 串行（一个接一个）" | tee -a "$MAIN_LOG"
 echo "随机种子: ${SEEDS[@]}" | tee -a "$MAIN_LOG"
 echo "基础输出目录: $BASE_OUTPUT_DIR" | tee -a "$MAIN_LOG"
@@ -98,7 +103,7 @@ run_experiment() {
     mkdir -p "$output_dir"
 
     echo "============================================================================" | tee -a "$MAIN_LOG"
-    echo "[$((COMPLETED_COUNT + FAILED_COUNT + 1))/12] 运行: $exp_name (seed=$seed)" | tee -a "$MAIN_LOG"
+    echo "[$((COMPLETED_COUNT + FAILED_COUNT + 1))/15] 运行: $exp_name (seed=$seed)" | tee -a "$MAIN_LOG"
     echo "============================================================================" | tee -a "$MAIN_LOG"
     echo "  开始时间: $(date)" | tee -a "$MAIN_LOG"
     echo "  输出目录: $output_dir" | tee -a "$MAIN_LOG"
@@ -128,7 +133,7 @@ run_experiment() {
     fi
 
     echo "  结束时间: $(date)" | tee -a "$MAIN_LOG"
-    echo "  已完成: $COMPLETED_COUNT, 失败: $FAILED_COUNT, 剩余: $((12 - COMPLETED_COUNT - FAILED_COUNT))" | tee -a "$MAIN_LOG"
+    echo "  已完成: $COMPLETED_COUNT, 失败: $FAILED_COUNT, 剩余: $((15 - COMPLETED_COUNT - FAILED_COUNT))" | tee -a "$MAIN_LOG"
     echo "" | tee -a "$MAIN_LOG"
 }
 
@@ -193,6 +198,21 @@ for seed in "${SEEDS[@]}"; do
 done
 
 # ============================================================================
+# 实验5: Full Model (完整模型)
+# Late Fusion + 中期融合 + 细粒度注意力（所有创新）
+# ============================================================================
+
+for seed in "${SEEDS[@]}"; do
+    run_experiment \
+        "Exp-5: Full Model" \
+        5 \
+        $seed \
+        True \
+        True \
+        True
+done
+
+# ============================================================================
 # 所有实验完成汇总
 # ============================================================================
 echo "============================================================================" | tee -a "$MAIN_LOG"
@@ -200,14 +220,16 @@ echo "🎉 所有实验执行完成！" | tee -a "$MAIN_LOG"
 echo "============================================================================" | tee -a "$MAIN_LOG"
 echo "" | tee -a "$MAIN_LOG"
 echo "结束时间: $(date)" | tee -a "$MAIN_LOG"
-echo "总计任务: 12" | tee -a "$MAIN_LOG"
+echo "总计任务: 15" | tee -a "$MAIN_LOG"
+echo "  - 消融实验 (Exp 1-4): 12个任务" | tee -a "$MAIN_LOG"
+echo "  - Full Model (Exp 5): 3个任务" | tee -a "$MAIN_LOG"
 echo "成功完成: $COMPLETED_COUNT" | tee -a "$MAIN_LOG"
 echo "执行失败: $FAILED_COUNT" | tee -a "$MAIN_LOG"
 echo "" | tee -a "$MAIN_LOG"
 
 # 生成结果汇总
 echo "============================================================================" | tee -a "$MAIN_LOG"
-echo "📊 生成结果汇总..." | tee -a "$MAIN_LOG"
+echo "📊 生成结果汇总（包括Full Model）..." | tee -a "$MAIN_LOG"
 echo "============================================================================" | tee -a "$MAIN_LOG"
 echo "" | tee -a "$MAIN_LOG"
 
@@ -215,7 +237,7 @@ python summarize_multi_seed_results.py --ablation_dir "$BASE_OUTPUT_DIR" | tee -
 
 echo "" | tee -a "$MAIN_LOG"
 echo "============================================================================" | tee -a "$MAIN_LOG"
-echo "✅ 消融实验全部完成！" | tee -a "$MAIN_LOG"
+echo "✅ 所有实验全部完成（包括Full Model）！" | tee -a "$MAIN_LOG"
 echo "============================================================================" | tee -a "$MAIN_LOG"
 echo "" | tee -a "$MAIN_LOG"
 echo "查看结果:" | tee -a "$MAIN_LOG"
@@ -224,7 +246,7 @@ echo "  - 简明汇总: $BASE_OUTPUT_DIR/ablation_summary.csv" | tee -a "$MAIN_L
 echo "  - 详细结果: $BASE_OUTPUT_DIR/ablation_detailed.csv" | tee -a "$MAIN_LOG"
 echo "" | tee -a "$MAIN_LOG"
 echo "各实验日志:" | tee -a "$MAIN_LOG"
-for exp_num in {1..4}; do
+for exp_num in {1..5}; do
     for seed in "${SEEDS[@]}"; do
         log_file="$BASE_OUTPUT_DIR/exp${exp_num}_seed${seed}/training.log"
         if [ -f "$log_file" ]; then

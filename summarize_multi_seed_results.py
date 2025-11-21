@@ -232,15 +232,16 @@ def summarize_results(base_dir, output_file=None, full_model_dir=None):
         exp_results = []
 
         for seed in seeds:
-            # Exp-5 (Full Model) 从不同目录加载
+            # Exp-5 (Full Model) 可以从消融目录或独立目录加载
             if exp_num == 5:
-                # 从Full Model目录加载
-                model_dir = full_model_dir / f"full_model_seed{seed}"
-                if model_dir.exists():
-                    # 直接读取Full Model的结果
-                    result = load_full_model_results(model_dir)
-                else:
-                    result = None
+                # 首先尝试从消融实验目录加载（exp5_seed格式）
+                result = load_experiment_results(base_dir, exp_num, seed)
+
+                # 如果没有找到，尝试从Full Model独立目录加载（full_model_seed格式）
+                if result is None:
+                    model_dir = full_model_dir / f"full_model_seed{seed}"
+                    if model_dir.exists():
+                        result = load_full_model_results(model_dir)
             else:
                 # Exp-1到Exp-4从消融实验目录加载
                 result = load_experiment_results(base_dir, exp_num, seed)

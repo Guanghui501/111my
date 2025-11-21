@@ -105,17 +105,23 @@ echo "${exp_names[5]}"
 echo "----------------------------------------"
 
 for seed in "${seeds[@]}"; do
-    model_dir="$FULL_MODEL_DIR/full_model_seed${seed}"
+    # 首先尝试从消融实验目录查找exp5
+    exp_dir="$BASE_OUTPUT_DIR/exp5_seed${seed}"
 
-    if [ -d "$model_dir" ]; then
+    # 如果没有找到，再尝试从Full Model独立目录查找
+    if [ ! -d "$exp_dir" ]; then
+        exp_dir="$FULL_MODEL_DIR/full_model_seed${seed}"
+    fi
+
+    if [ -d "$exp_dir" ]; then
         # 检查训练历史文件
-        if [ -f "$model_dir/history_val.json" ]; then
+        if [ -f "$exp_dir/history_val.json" ]; then
             # 使用Python获取当前轮数和最佳性能
             epoch_info=$(python3 -c "
 import json
 import sys
 try:
-    with open('$model_dir/history_val.json', 'r') as f:
+    with open('$exp_dir/history_val.json', 'r') as f:
         data = json.load(f)
     epochs = len(data.get('loss', []))
 
@@ -147,9 +153,12 @@ except:
                 echo "  🔄 Seed $seed: 进行中..."
             fi
         else
-            # 检查nohup.log是否有内容
-            if [ -f "$model_dir/nohup.log" ]; then
-                log_size=$(du -h "$model_dir/nohup.log" | cut -f1)
+            # 检查training.log或nohup.log
+            if [ -f "$exp_dir/training.log" ]; then
+                log_size=$(du -h "$exp_dir/training.log" | cut -f1)
+                echo "  🔄 Seed $seed: 进行中... (日志大小: $log_size)"
+            elif [ -f "$exp_dir/nohup.log" ]; then
+                log_size=$(du -h "$exp_dir/nohup.log" | cut -f1)
                 echo "  🔄 Seed $seed: 进行中... (日志大小: $log_size)"
             else
                 echo "  ⏳ Seed $seed: 准备启动..."
@@ -194,7 +203,13 @@ echo "${exp_names[5]}"
 echo "----------------------------------------"
 
 for seed in "${seeds[@]}"; do
-    log_file="$FULL_MODEL_DIR/full_model_seed${seed}/nohup.log"
+    # 首先尝试从消融实验目录查找training.log
+    log_file="$BASE_OUTPUT_DIR/exp5_seed${seed}/training.log"
+
+    # 如果没有找到，尝试从Full Model独立目录查找nohup.log
+    if [ ! -f "$log_file" ] || [ ! -s "$log_file" ]; then
+        log_file="$FULL_MODEL_DIR/full_model_seed${seed}/nohup.log"
+    fi
 
     if [ -f "$log_file" ] && [ -s "$log_file" ]; then
         echo ""
@@ -270,13 +285,19 @@ done
 short_name="Full Model"
 results=()
 for seed in "${seeds[@]}"; do
-    model_dir="$FULL_MODEL_DIR/full_model_seed${seed}"
+    # 首先尝试从消融实验目录查找
+    exp_dir="$BASE_OUTPUT_DIR/exp5_seed${seed}"
 
-    if [ -f "$model_dir/history_val.json" ]; then
+    # 如果没有找到，尝试从Full Model独立目录查找
+    if [ ! -f "$exp_dir/history_val.json" ]; then
+        exp_dir="$FULL_MODEL_DIR/full_model_seed${seed}"
+    fi
+
+    if [ -f "$exp_dir/history_val.json" ]; then
         result=$(python3 -c "
 import json
 try:
-    with open('$model_dir/history_val.json', 'r') as f:
+    with open('$exp_dir/history_val.json', 'r') as f:
         data = json.load(f)
 
     if 'mae' in data:
@@ -315,14 +336,14 @@ echo "4️⃣  磁盘使用情况"
 echo "============================================================================"
 echo ""
 
-# 消融实验磁盘使用
+# 消融实验磁盘使用（包括Full Model）
 if [ -d "$BASE_OUTPUT_DIR" ]; then
     ablation_size=$(du -sh "$BASE_OUTPUT_DIR" | cut -f1)
-    echo "  消融实验总大小: $ablation_size"
+    echo "  消融实验总大小（包括Full Model）: $ablation_size"
     echo ""
-    echo "  各消融实验大小:"
+    echo "  各实验大小:"
 
-    for exp_num in {1..4}; do
+    for exp_num in {1..5}; do
         exp_total=0
         for seed in "${seeds[@]}"; do
             exp_dir="$BASE_OUTPUT_DIR/exp${exp_num}_seed${seed}"
@@ -339,10 +360,11 @@ if [ -d "$BASE_OUTPUT_DIR" ]; then
     echo ""
 fi
 
-# Full Model磁盘使用
+# Full Model独立目录磁盘使用（如果存在）
 if [ -d "$FULL_MODEL_DIR" ]; then
     full_model_size=$(du -sh "$FULL_MODEL_DIR" | cut -f1)
-    echo "  Full Model总大小: $full_model_size"
+    echo "  Full Model独立目录总大小: $full_model_size"
+    echo "  （注：如果Full Model在上面已统计，此处为独立后台运行的Full Model）"
     echo ""
     echo "  各Full Model训练大小:"
 
