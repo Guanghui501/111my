@@ -50,6 +50,20 @@ from transformers import AutoTokenizer, AutoModel
 from tokenizers.normalizers import BertNormalizer
 
 
+# ==================== 辅助函数 ====================
+
+def str2bool(v):
+    """将字符串转换为布尔值（用于argparse）"""
+    if isinstance(v, bool):
+        return v
+    if v.lower() in ('yes', 'true', 't', 'y', '1'):
+        return True
+    elif v.lower() in ('no', 'false', 'f', 'n', '0'):
+        return False
+    else:
+        raise argparse.ArgumentTypeError('布尔值应为 yes/no, true/false, t/f, y/n, 1/0')
+
+
 # ==================== 配置参数 ====================
 
 def get_parser():
@@ -69,7 +83,7 @@ def get_parser():
                         help='预测的性质 (回归: formation_energy, band_gap; 分类: syn, metal_oxide等)')
 
     # 预处理数据参数
-    parser.add_argument('--use_preprocessed', type=bool, default=False,
+    parser.add_argument('--use_preprocessed', type=str2bool, default=False,
                         help='是否使用预处理的图数据（大幅加快加载速度）')
     parser.add_argument('--preprocessed_dir', type=str, default='preprocessed_data',
                         help='预处理数据目录')
@@ -111,7 +125,7 @@ def get_parser():
                         help='ALIGNN/GCN层的dropout率（用于正则化）')
 
     # 跨模态注意力参数（晚期融合）
-    parser.add_argument('--use_cross_modal', type=bool, default=True,
+    parser.add_argument('--use_cross_modal', type=str2bool, default=True,
                         help='是否使用跨模态注意力（晚期融合）')
     parser.add_argument('--cross_modal_hidden_dim', type=int, default=256,
                         help='跨模态注意力隐藏层维度')
@@ -122,7 +136,7 @@ def get_parser():
                         help='跨模态注意力dropout率')
 
     # 中期融合参数
-    parser.add_argument('--use_middle_fusion', type=bool, default=False,
+    parser.add_argument('--use_middle_fusion', type=str2bool, default=False,
                         help='是否使用中期融合（在编码过程中注入文本信息）')
     parser.add_argument('--middle_fusion_layers', type=str, default='2',
                         help='中期融合注入的层索引（逗号分隔，如 "2" 或 "2,3"）')
@@ -135,7 +149,7 @@ def get_parser():
                         help='中期融合dropout率')
 
     # 细粒度注意力参数（原子-文本token级别）⭐ NEW!
-    parser.add_argument('--use_fine_grained_attention', type=bool, default=False,
+    parser.add_argument('--use_fine_grained_attention', type=str2bool, default=False,
                         help='是否使用细粒度注意力（原子-文本token级别）')
     parser.add_argument('--fine_grained_hidden_dim', type=int, default=256,
                         help='细粒度注意力隐藏层维度')
@@ -144,7 +158,7 @@ def get_parser():
                         help='细粒度注意力头数')
     parser.add_argument('--fine_grained_dropout', type=float, default=0.1,
                         help='细粒度注意力dropout率')
-    parser.add_argument('--fine_grained_use_projection', type=bool, default=True,
+    parser.add_argument('--fine_grained_use_projection', type=str2bool, default=True,
                         help='细粒度注意力是否使用投影层')
     parser.add_argument('--mask_stopwords', type=int, default=0,
                         help='是否在训练时mask停用词 (0/1)')
@@ -154,7 +168,7 @@ def get_parser():
                         help='停用词目录路径 (默认: ./stopwords/en/)')
 
     # 对比学习参数
-    parser.add_argument('--use_contrastive', type=bool, default=False,
+    parser.add_argument('--use_contrastive', type=str2bool, default=False,
                         help='是否使用对比学习损失')
     parser.add_argument('--contrastive_weight', type=float, default=0.1,
                         help='对比学习损失的权重（相对于主任务损失）')
