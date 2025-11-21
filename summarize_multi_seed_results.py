@@ -84,10 +84,87 @@ def load_experiment_results(base_dir, exp_num, seed):
         return None
 
 
-def summarize_results(base_dir, output_file=None):
-    """汇总所有实验结果"""
+def load_full_model_results(model_dir):
+    """加载Full Model的结果"""
+    model_dir = Path(model_dir)
+
+    if not model_dir.exists():
+        return None
+
+    history_val_file = model_dir / "history_val.json"
+    history_train_file = model_dir / "history_train.json"
+
+    if not history_val_file.exists():
+        return None
+
+    try:
+        with open(history_val_file, 'r') as f:
+            val_history = json.load(f)
+
+        with open(history_train_file, 'r') as f:
+            train_history = json.load(f)
+
+        # 检测任务类型
+        if 'mae' in val_history:
+            task_type = 'regression'
+            metric_name = 'mae'
+            val_metrics = val_history['mae']
+            best_val = min(val_metrics)
+            best_epoch = val_metrics.index(best_val)
+        elif 'accuracy' in val_history:
+            task_type = 'classification'
+            metric_name = 'accuracy'
+            val_metrics = val_history['accuracy']
+            best_val = max(val_metrics)
+            best_epoch = val_metrics.index(best_val)
+        else:
+            return None
+
+        # 提取关键指标
+        result = {
+            'task_type': task_type,
+            'metric_name': metric_name,
+            'total_epochs': len(val_history['epochs']),
+            'best_epoch': val_history['epochs'][best_epoch],
+            'best_val': best_val,
+            'final_val': val_metrics[-1],
+            'best_train_loss': train_history['loss'][best_epoch],
+            'final_train_loss': train_history['loss'][-1],
+        }
+
+        # 添加额外指标（如果存在）
+        if task_type == 'regression':
+            if 'rmse' in val_history:
+                result['best_val_rmse'] = min(val_history['rmse'])
+                result['final_val_rmse'] = val_history['rmse'][-1]
+        elif task_type == 'classification':
+            if 'precision' in val_history:
+                result['best_val_precision'] = max(val_history['precision'])
+                result['final_val_precision'] = val_history['precision'][-1]
+            if 'recall' in val_history:
+                result['best_val_recall'] = max(val_history['recall'])
+                result['final_val_recall'] = val_history['recall'][-1]
+            if 'f1' in val_history:
+                result['best_val_f1'] = max(val_history['f1'])
+                result['final_val_f1'] = val_history['f1'][-1]
+
+        return result
+
+    except Exception as e:
+        print(f"警告: 读取 {model_dir} 时出错: {e}")
+        return None
+
+
+def summarize_results(base_dir, output_file=None, full_model_dir=None):
+    """汇总所有实验结果（包括Full Model）"""
 
     base_dir = Path(base_dir)
+
+    # 自动检测Full Model目录
+    if full_model_dir is None:
+        full_model_dir = base_dir.parent / "full_model_multi_seed"
+    else:
+        full_model_dir = Path(full_model_dir)
 
     # 实验配置
     exp_configs = {
@@ -123,6 +200,14 @@ def summarize_results(base_dir, output_file=None):
             'use_middle_fusion': False,
             'use_fine_grained': True,
         },
+        5: {
+            'name': 'Exp-5: Full Model',
+            'short_name': 'Full',
+            'description': 'All innovations combined',
+            'use_cross_modal': True,
+            'use_middle_fusion': True,
+            'use_fine_grained': True,
+        },
     }
 
     seeds = [42, 123, 7]
@@ -133,11 +218,12 @@ def summarize_results(base_dir, output_file=None):
     metric_name = None
 
     print("="*80)
-    print("📊 多种子消融实验结果汇总")
+    print("📊 多种子消融实验结果汇总（包括Full Model）")
     print("="*80)
-    print(f"\n基础目录: {base_dir}\n")
+    print(f"\n消融实验目录: {base_dir}")
+    print(f"Full Model目录: {full_model_dir}\n")
 
-    for exp_num in range(1, 5):
+    for exp_num in range(1, 6):
         config = exp_configs[exp_num]
 
         print(f"\n{config['name']}")
@@ -146,7 +232,18 @@ def summarize_results(base_dir, output_file=None):
         exp_results = []
 
         for seed in seeds:
-            result = load_experiment_results(base_dir, exp_num, seed)
+            # Exp-5 (Full Model) 从不同目录加载
+            if exp_num == 5:
+                # 从Full Model目录加载
+                model_dir = full_model_dir / f"full_model_seed{seed}"
+                if model_dir.exists():
+                    # 直接读取Full Model的结果
+                    result = load_full_model_results(model_dir)
+                else:
+                    result = None
+            else:
+                # Exp-1到Exp-4从消融实验目录加载
+                result = load_experiment_results(base_dir, exp_num, seed)
 
             if result is not None:
                 if task_type is None:
@@ -313,9 +410,11 @@ def summarize_results(base_dir, output_file=None):
 
 
 def main():
-    parser = argparse.ArgumentParser(description='多种子消融实验结果汇总')
+    parser = argparse.ArgumentParser(description='多种子消融实验结果汇总（包括Full Model）')
     parser.add_argument('--ablation_dir', type=str, default='./ablation_multi_seed',
                         help='消融实验基础目录')
+    parser.add_argument('--full_model_dir', type=str, default=None,
+                        help='Full Model训练目录（可选，默认自动检测为 ../full_model_multi_seed）')
     parser.add_argument('--output', type=str, default=None,
                         help='输出CSV文件路径（可选）')
 
@@ -325,7 +424,7 @@ def main():
         print(f"错误: 目录不存在: {args.ablation_dir}")
         sys.exit(1)
 
-    summarize_results(args.ablation_dir, args.output)
+    summarize_results(args.ablation_dir, args.output, args.full_model_dir)
 
 
 if __name__ == '__main__':
