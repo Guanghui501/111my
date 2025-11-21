@@ -514,85 +514,112 @@ def train_dgl(config: Union[TrainingConfig, Dict[str, Any]], model: nn.Module = 
     print(f"  - best_test_model.pt")
     print("="*80 + "\n")
 
-    # Write Predictions for validation set
-    net.eval()
-    f_val = open(os.path.join(config.output_dir, "prediction_results_val_set.csv"),"w")
-    f_val.write("id,target,prediction\n")
-    val_targets = []
-    val_predictions = []
-    with torch.no_grad():
-        val_ids = val_loader.dataset.ids
-        sample_idx = 0
-        for dat in val_loader:
-            g, lg, text, target = dat
-            out_data = net([g.to(device), lg.to(device), text])
-            if isinstance(out_data, dict):
-                out_data = out_data['predictions']
-            out_data = out_data.cpu().numpy().tolist()
-            target = target.cpu().numpy().flatten().tolist()
+    # 定义预测保存函数，避免代码重复
+    def save_predictions(model, data_loader, output_file, dataset_name):
+        """保存预测结果到CSV文件"""
+        model.eval()
+        f = open(output_file, "w")
+        f.write("id,target,prediction\n")
+        targets = []
+        predictions = []
 
-            batch_size = len(target) if isinstance(target, list) else 1
-            if batch_size == 1 and not isinstance(target, list):
-                target = [target]
-                out_data = [out_data]
+        with torch.no_grad():
+            ids = data_loader.dataset.ids
+            sample_idx = 0
+            for dat in data_loader:
+                g, lg, text, target = dat
+                out_data = model([g.to(device), lg.to(device), text])
+                if isinstance(out_data, dict):
+                    out_data = out_data['predictions']
+                out_data = out_data.cpu().numpy().tolist()
+                target = target.cpu().numpy().flatten().tolist()
 
-            for k in range(batch_size):
-                id = val_ids[sample_idx + k]
-                pred_value = max(0.0, out_data[k])
-                f_val.write("%s, %6f, %6f\n" % (id, target[k], pred_value))
-                val_targets.append(target[k])
-                val_predictions.append(pred_value)
-            sample_idx += batch_size
-    f_val.close()
+                batch_size = len(target) if isinstance(target, list) else 1
+                if batch_size == 1 and not isinstance(target, list):
+                    target = [target]
+                    out_data = [out_data]
 
-    from sklearn.metrics import mean_absolute_error
-    print("Validation MAE:", mean_absolute_error(np.array(val_targets), np.array(val_predictions)))
+                for k in range(batch_size):
+                    id = ids[sample_idx + k]
+                    pred_value = max(0.0, out_data[k])
+                    f.write("%s, %6f, %6f\n" % (id, target[k], pred_value))
+                    targets.append(target[k])
+                    predictions.append(pred_value)
+                sample_idx += batch_size
+        f.close()
 
-    # Write Predictions for test set
-    f = open(os.path.join(config.output_dir, "prediction_results_test_set.csv"),"w")
-    f.write("id,target,prediction\n")
-    targets = []
-    predictions = []
-    with torch.no_grad():
-        ids = test_loader.dataset.ids  # [test_loader.dataset.indices]
-        sample_idx = 0  # 追踪当前样本索引
-        for dat in test_loader:
-            # g, lg, target = dat
-            # out_data = net([g.to(device), lg.to(device)])
-            g, lg, text, target = dat
-            out_data = net([g.to(device), lg.to(device), text])
-            # 处理对比学习模式的dict输出
-            if isinstance(out_data, dict):
-                out_data = out_data['predictions']
-            out_data = out_data.cpu().numpy().tolist()
-            if config.standard_scalar_and_pca:
-                sc = pk.load(open(os.path.join(tmp_output_dir, "sc.pkl"), "rb"))
-                out_data = sc.transform(np.array(out_data).reshape(-1, 1))[
-                    0
-                ][0]
-            target = target.cpu().numpy().flatten().tolist()
+        from sklearn.metrics import mean_absolute_error
+        mae = mean_absolute_error(np.array(targets), np.array(predictions))
+        print(f"  {dataset_name} MAE: {mae:.6f}")
+        return mae
 
-            # 处理batch中的每个样本
-            batch_size = len(target) if isinstance(target, list) else 1
-            if batch_size == 1 and not isinstance(target, list):
-                target = [target]
-                out_data = [out_data]
+    # ==================== 1. 最后一个epoch的预测 ====================
+    print("\n📊 [1/3] 保存最后一个epoch的预测结果...")
+    print("-" * 60)
 
-            for k in range(batch_size):
-                # 获取当前样本的id
-                id = ids[sample_idx + k]
-                # 将负数预测值统一为0
-                pred_value = max(0.0, out_data[k])
-                f.write("%s, %6f, %6f\n" % (id, target[k], pred_value))
-                targets.append(target[k])
-                predictions.append(pred_value)
+    # 验证集
+    last_val_file = os.path.join(config.output_dir, "predictions_last_epoch_val.csv")
+    save_predictions(net, val_loader, last_val_file, "Last Epoch - Validation")
 
-            sample_idx += batch_size
-    f.close()
-    from sklearn.metrics import mean_absolute_error
-    # print(targets)
-    # print(predictions)
-    print("Test MAE:",mean_absolute_error(np.array(targets), np.array(predictions)))
+    # 测试集
+    last_test_file = os.path.join(config.output_dir, "predictions_last_epoch_test.csv")
+    save_predictions(net, test_loader, last_test_file, "Last Epoch - Test")
+    print(f"✅ 已保存: predictions_last_epoch_val.csv, predictions_last_epoch_test.csv")
+
+    # ==================== 2. 最佳验证集模型的预测 ====================
+    print("\n📊 [2/3] 加载最佳验证集模型并保存预测...")
+    print("-" * 60)
+
+    best_val_checkpoint_path = os.path.join(config.output_dir, "best_val_model.pt")
+    if os.path.exists(best_val_checkpoint_path):
+        best_val_checkpoint = torch.load(best_val_checkpoint_path, map_location=device, weights_only=False)
+        net.load_state_dict(best_val_checkpoint['model'])
+
+        # 验证集
+        best_val_val_file = os.path.join(config.output_dir, "predictions_best_val_model_val.csv")
+        save_predictions(net, val_loader, best_val_val_file, "Best Val Model - Validation")
+
+        # 测试集
+        best_val_test_file = os.path.join(config.output_dir, "predictions_best_val_model_test.csv")
+        save_predictions(net, test_loader, best_val_test_file, "Best Val Model - Test")
+        print(f"✅ 已保存: predictions_best_val_model_val.csv, predictions_best_val_model_test.csv")
+    else:
+        print("⚠️  未找到best_val_model.pt，跳过")
+
+    # ==================== 3. 最佳测试集模型的预测 ====================
+    print("\n📊 [3/3] 加载最佳测试集模型并保存预测...")
+    print("-" * 60)
+
+    best_test_checkpoint_path = os.path.join(config.output_dir, "best_test_model.pt")
+    if os.path.exists(best_test_checkpoint_path):
+        best_test_checkpoint = torch.load(best_test_checkpoint_path, map_location=device, weights_only=False)
+        net.load_state_dict(best_test_checkpoint['model'])
+
+        # 验证集
+        best_test_val_file = os.path.join(config.output_dir, "predictions_best_test_model_val.csv")
+        save_predictions(net, val_loader, best_test_val_file, "Best Test Model - Validation")
+
+        # 测试集
+        best_test_test_file = os.path.join(config.output_dir, "predictions_best_test_model_test.csv")
+        save_predictions(net, test_loader, best_test_test_file, "Best Test Model - Test")
+        print(f"✅ 已保存: predictions_best_test_model_val.csv, predictions_best_test_model_test.csv")
+    else:
+        print("⚠️  未找到best_test_model.pt，跳过")
+
+    # 保留兼容性：创建默认文件链接到最佳验证集模型的预测
+    print("\n📝 创建默认预测文件（链接到最佳验证集模型）...")
+    if os.path.exists(best_val_checkpoint_path):
+        import shutil
+        default_val = os.path.join(config.output_dir, "prediction_results_val_set.csv")
+        default_test = os.path.join(config.output_dir, "prediction_results_test_set.csv")
+        shutil.copy(best_val_val_file, default_val)
+        shutil.copy(best_val_test_file, default_test)
+        print(f"✅ 已创建: prediction_results_val_set.csv (= best_val_model)")
+        print(f"✅ 已创建: prediction_results_test_set.csv (= best_val_model)")
+
+    print("\n" + "="*60)
+    print("✅ 所有预测结果已保存完成！")
+    print("="*60)
 
 
     return history
