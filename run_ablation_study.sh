@@ -5,6 +5,24 @@
 # 测试中期融合和细粒度对齐的有效性
 # ============================================================================
 
+# 后台运行支持
+# 如果不是在后台运行，则重启到后台
+if [[ "$1" != "--background-mode" ]]; then
+    echo "🚀 启动消融实验（后台运行模式）..."
+    nohup bash "$0" --background-mode > ablation_nohup.log 2>&1 &
+    BG_PID=$!
+    echo "✅ 后台进程已启动，PID: $BG_PID"
+    echo "📝 nohup日志: ablation_nohup.log"
+    echo "📝 详细日志将保存在: ./ablation_experiments/ablation_log_*.txt"
+    echo ""
+    echo "监控命令:"
+    echo "  tail -f ablation_nohup.log                    # 查看nohup输出"
+    echo "  tail -f ./ablation_experiments/ablation_log_*.txt  # 查看详细日志"
+    echo "  ps -p $BG_PID                                  # 检查进程是否运行"
+    echo "  kill $BG_PID                                   # 终止实验"
+    exit 0
+fi
+
 # 实验配置
 DATASET="jarvis"
 PROPERTY="mbj_bandgap"
@@ -199,3 +217,10 @@ echo "" | tee -a "$LOG_FILE"
 echo "✅  消融实验全部完成！" | tee -a "$LOG_FILE"
 echo "查看日志: $LOG_FILE" | tee -a "$LOG_FILE"
 echo "查看汇总: $BASE_OUTPUT_DIR/ablation_summary.csv" | tee -a "$LOG_FILE"
+
+# 创建完成标记文件
+echo "$(date)" > "$BASE_OUTPUT_DIR/COMPLETED"
+echo "" | tee -a "$LOG_FILE"
+echo "============================================================================" | tee -a "$LOG_FILE"
+echo "🎉 后台任务已完成！" | tee -a "$LOG_FILE"
+echo "============================================================================" | tee -a "$LOG_FILE"
