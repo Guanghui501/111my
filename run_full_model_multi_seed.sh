@@ -1,8 +1,8 @@
 #!/bin/bash
 
 # ============================================================================
-# 全模块（Full Model）多种子训练脚本 - 后台并行执行
-# 运行3个随机种子的完整模型训练，所有任务在后台并行运行
+# 全模块（Full Model）多种子训练脚本 - 串行执行
+# 运行3个随机种子的完整模型训练，任务一个接一个执行
 # ============================================================================
 
 # 基础配置
@@ -63,108 +63,105 @@ mkdir -p "$BASE_OUTPUT_DIR"
 # 主日志文件
 MAIN_LOG="$BASE_OUTPUT_DIR/launch_log_$(date +%Y%m%d_%H%M%S).txt"
 
-# 用于存储后台进程的PID
-declare -a ALL_PIDS
-declare -a ALL_NAMES
+# 用于统计完成任务
+COMPLETED_COUNT=0
+FAILED_COUNT=0
 
 echo "============================================================================" | tee -a "$MAIN_LOG"
-echo "🚀 启动全模块训练（多种子版本 - 后台并行执行）" | tee -a "$MAIN_LOG"
+echo "🚀 启动全模块训练（多种子版本 - 串行执行）" | tee -a "$MAIN_LOG"
 echo "============================================================================" | tee -a "$MAIN_LOG"
 echo "时间: $(date)" | tee -a "$MAIN_LOG"
 echo "数据集: $DATASET/$PROPERTY" | tee -a "$MAIN_LOG"
 echo "实验配置: Full Model × 3个种子 = 3个训练任务" | tee -a "$MAIN_LOG"
-echo "执行模式: 后台并行" | tee -a "$MAIN_LOG"
+echo "执行模式: 串行（一个接一个）" | tee -a "$MAIN_LOG"
 echo "随机种子: ${SEEDS[@]}" | tee -a "$MAIN_LOG"
 echo "基础输出目录: $BASE_OUTPUT_DIR" | tee -a "$MAIN_LOG"
 echo "============================================================================" | tee -a "$MAIN_LOG"
 echo "" | tee -a "$MAIN_LOG"
 
 # ============================================================================
-# 启动所有Full Model训练任务
+# 串行运行所有Full Model训练任务
 # ============================================================================
 
 for seed in "${SEEDS[@]}"; do
     output_dir="$BASE_OUTPUT_DIR/full_model_seed${seed}"
-    log_file="$output_dir/nohup.log"
+    log_file="$output_dir/training.log"
 
     # 创建输出目录
     mkdir -p "$output_dir"
 
-    echo "----------------------------------------" | tee -a "$MAIN_LOG"
-    echo "启动: Full Model (seed=$seed)" | tee -a "$MAIN_LOG"
+    echo "============================================================================" | tee -a "$MAIN_LOG"
+    echo "[$((COMPLETED_COUNT + FAILED_COUNT + 1))/3] 运行: Full Model (seed=$seed)" | tee -a "$MAIN_LOG"
+    echo "============================================================================" | tee -a "$MAIN_LOG"
+    echo "  开始时间: $(date)" | tee -a "$MAIN_LOG"
     echo "  输出目录: $output_dir" | tee -a "$MAIN_LOG"
     echo "  配置: 所有模块启用 (cross_modal=True, middle_fusion=True, fine_grained=True)" | tee -a "$MAIN_LOG"
+    echo "" | tee -a "$MAIN_LOG"
 
-    # 后台启动训练
-    nohup python train_with_cross_modal_attention.py \
+    # 同步执行训练（等待完成）
+    python train_with_cross_modal_attention.py \
         $COMMON_ARGS \
         --random_seed $seed \
         --use_cross_modal True \
         --use_middle_fusion True \
         --use_fine_grained_attention True \
         --output_dir "$output_dir" \
-        > "$log_file" 2>&1 &
+        2>&1 | tee "$log_file"
 
-    pid=$!
-    ALL_PIDS+=($pid)
-    ALL_NAMES+=("FullModel_Seed${seed}")
+    # 检查退出状态
+    exit_code=${PIPESTATUS[0]}
 
-    echo "  后台进程PID: $pid" | tee -a "$MAIN_LOG"
-    echo "  日志文件: $log_file" | tee -a "$MAIN_LOG"
     echo "" | tee -a "$MAIN_LOG"
+    if [ $exit_code -eq 0 ]; then
+        echo "✅ 完成: Full Model (seed=$seed)" | tee -a "$MAIN_LOG"
+        COMPLETED_COUNT=$((COMPLETED_COUNT + 1))
+    else
+        echo "❌ 失败: Full Model (seed=$seed) - 退出码: $exit_code" | tee -a "$MAIN_LOG"
+        FAILED_COUNT=$((FAILED_COUNT + 1))
+    fi
 
-    # 短暂延迟
-    sleep 2
+    echo "  结束时间: $(date)" | tee -a "$MAIN_LOG"
+    echo "  已完成: $COMPLETED_COUNT, 失败: $FAILED_COUNT, 剩余: $((3 - COMPLETED_COUNT - FAILED_COUNT))" | tee -a "$MAIN_LOG"
+    echo "" | tee -a "$MAIN_LOG"
 done
 
 # ============================================================================
-# 启动完成汇总
+# 所有训练完成汇总
 # ============================================================================
 echo "============================================================================" | tee -a "$MAIN_LOG"
-echo "✅ 所有Full Model训练已在后台启动！" | tee -a "$MAIN_LOG"
+echo "🎉 所有Full Model训练执行完成！" | tee -a "$MAIN_LOG"
 echo "============================================================================" | tee -a "$MAIN_LOG"
 echo "" | tee -a "$MAIN_LOG"
-echo "总计: ${#ALL_PIDS[@]} 个训练任务" | tee -a "$MAIN_LOG"
+echo "结束时间: $(date)" | tee -a "$MAIN_LOG"
+echo "总计任务: 3" | tee -a "$MAIN_LOG"
+echo "成功完成: $COMPLETED_COUNT" | tee -a "$MAIN_LOG"
+echo "执行失败: $FAILED_COUNT" | tee -a "$MAIN_LOG"
 echo "" | tee -a "$MAIN_LOG"
-echo "后台进程列表:" | tee -a "$MAIN_LOG"
-echo "----------------------------------------" | tee -a "$MAIN_LOG"
-for i in "${!ALL_PIDS[@]}"; do
-    printf "  [%d] %s (PID: %d)\n" $((i+1)) "${ALL_NAMES[$i]}" "${ALL_PIDS[$i]}" | tee -a "$MAIN_LOG"
+
+# 生成结果汇总
+echo "============================================================================" | tee -a "$MAIN_LOG"
+echo "📊 生成结果汇总..." | tee -a "$MAIN_LOG"
+echo "============================================================================" | tee -a "$MAIN_LOG"
+echo "" | tee -a "$MAIN_LOG"
+
+python summarize_full_model_results.py --model_dir "$BASE_OUTPUT_DIR" | tee -a "$MAIN_LOG"
+
+echo "" | tee -a "$MAIN_LOG"
+echo "============================================================================" | tee -a "$MAIN_LOG"
+echo "✅ Full Model训练全部完成！" | tee -a "$MAIN_LOG"
+echo "============================================================================" | tee -a "$MAIN_LOG"
+echo "" | tee -a "$MAIN_LOG"
+echo "查看结果:" | tee -a "$MAIN_LOG"
+echo "  - 主日志: $MAIN_LOG" | tee -a "$MAIN_LOG"
+echo "  - 简明汇总: $BASE_OUTPUT_DIR/full_model_summary.csv" | tee -a "$MAIN_LOG"
+echo "  - 详细结果: $BASE_OUTPUT_DIR/full_model_detailed.csv" | tee -a "$MAIN_LOG"
+echo "" | tee -a "$MAIN_LOG"
+echo "各训练日志:" | tee -a "$MAIN_LOG"
+for seed in "${SEEDS[@]}"; do
+    log_file="$BASE_OUTPUT_DIR/full_model_seed${seed}/training.log"
+    if [ -f "$log_file" ]; then
+        echo "  - full_model_seed${seed}: $log_file" | tee -a "$MAIN_LOG"
+    fi
 done
 echo "" | tee -a "$MAIN_LOG"
-
-# ============================================================================
-# 监控命令提示
-# ============================================================================
 echo "============================================================================" | tee -a "$MAIN_LOG"
-echo "📝 监控命令:" | tee -a "$MAIN_LOG"
-echo "============================================================================" | tee -a "$MAIN_LOG"
-echo "" | tee -a "$MAIN_LOG"
-echo "1. 查看所有进程状态:" | tee -a "$MAIN_LOG"
-echo "   ps -p ${ALL_PIDS[*]} -o pid,stat,etime,cmd" | tee -a "$MAIN_LOG"
-echo "" | tee -a "$MAIN_LOG"
-echo "2. 查看特定训练的日志 (例如 Seed 42):" | tee -a "$MAIN_LOG"
-echo "   tail -f $BASE_OUTPUT_DIR/full_model_seed42/nohup.log" | tee -a "$MAIN_LOG"
-echo "" | tee -a "$MAIN_LOG"
-echo "3. 查看所有训练的最新状态:" | tee -a "$MAIN_LOG"
-echo "   ./check_full_model_progress.sh" | tee -a "$MAIN_LOG"
-echo "" | tee -a "$MAIN_LOG"
-echo "4. 终止所有训练:" | tee -a "$MAIN_LOG"
-echo "   kill ${ALL_PIDS[*]}" | tee -a "$MAIN_LOG"
-echo "" | tee -a "$MAIN_LOG"
-echo "5. 查看GPU使用情况:" | tee -a "$MAIN_LOG"
-echo "   nvidia-smi" | tee -a "$MAIN_LOG"
-echo "" | tee -a "$MAIN_LOG"
-echo "6. 生成结果汇总:" | tee -a "$MAIN_LOG"
-echo "   python summarize_full_model_results.py --model_dir $BASE_OUTPUT_DIR" | tee -a "$MAIN_LOG"
-echo "" | tee -a "$MAIN_LOG"
-echo "============================================================================" | tee -a "$MAIN_LOG"
-echo "主日志文件: $MAIN_LOG" | tee -a "$MAIN_LOG"
-echo "============================================================================" | tee -a "$MAIN_LOG"
-echo "" | tee -a "$MAIN_LOG"
-
-# 保存PID列表到文件，方便后续管理
-PID_FILE="$BASE_OUTPUT_DIR/running_pids.txt"
-printf "%s\n" "${ALL_PIDS[@]}" > "$PID_FILE"
-echo "✅ 进程PID已保存到: $PID_FILE" | tee -a "$MAIN_LOG"
-echo "" | tee -a "$MAIN_LOG"

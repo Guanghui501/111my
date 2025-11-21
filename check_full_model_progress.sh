@@ -1,68 +1,24 @@
 #!/bin/bash
 
 # ============================================================================
-# 全模块训练进度监控脚本
+# 全模块训练进度监控脚本（串行执行版本）
 # 检查3个种子的Full Model训练状态
 # ============================================================================
 
 BASE_OUTPUT_DIR="./full_model_multi_seed"
-PID_FILE="$BASE_OUTPUT_DIR/running_pids.txt"
 
 echo "============================================================================"
-echo "📊 Full Model训练状态检查"
+echo "📊 Full Model训练状态检查（串行执行版本）"
 echo "============================================================================"
 echo ""
 echo "时间: $(date)"
 echo ""
 
 # ============================================================================
-# 1. 检查后台进程状态
+# 1. 训练详细进度
 # ============================================================================
 echo "============================================================================"
-echo "1️⃣  后台进程状态"
-echo "============================================================================"
-echo ""
-
-if [ -f "$PID_FILE" ]; then
-    mapfile -t PIDS < "$PID_FILE"
-
-    running_count=0
-    finished_count=0
-
-    for pid in "${PIDS[@]}"; do
-        if ps -p "$pid" > /dev/null 2>&1; then
-            running_count=$((running_count + 1))
-        else
-            finished_count=$((finished_count + 1))
-        fi
-    done
-
-    total_count=${#PIDS[@]}
-    echo "  总任务数: $total_count"
-    echo "  运行中: $running_count"
-    echo "  已完成: $finished_count"
-    echo ""
-
-    if [ $running_count -gt 0 ]; then
-        echo "  运行中的进程PID:"
-        for pid in "${PIDS[@]}"; do
-            if ps -p "$pid" > /dev/null 2>&1; then
-                echo "    - PID $pid (运行时间: $(ps -p $pid -o etime= | xargs))"
-            fi
-        done
-        echo ""
-    fi
-else
-    echo "  ⚠️  未找到PID文件: $PID_FILE"
-    echo "  可能训练尚未启动或PID文件已被删除"
-    echo ""
-fi
-
-# ============================================================================
-# 2. 训练详细进度
-# ============================================================================
-echo "============================================================================"
-echo "2️⃣  训练详细进度"
+echo "1️⃣  训练详细进度"
 echo "============================================================================"
 echo ""
 
@@ -116,8 +72,11 @@ except:
                 echo "  状态: 🔄 进行中..."
             fi
         else
-            # 检查nohup.log是否有内容
-            if [ -f "$model_dir/nohup.log" ]; then
+            # 检查training.log或nohup.log是否有内容
+            if [ -f "$model_dir/training.log" ]; then
+                log_size=$(du -h "$model_dir/training.log" | cut -f1)
+                echo "  状态: 🔄 进行中... (日志大小: $log_size)"
+            elif [ -f "$model_dir/nohup.log" ]; then
                 log_size=$(du -h "$model_dir/nohup.log" | cut -f1)
                 echo "  状态: 🔄 进行中... (日志大小: $log_size)"
             else
@@ -140,15 +99,19 @@ except:
 done
 
 # ============================================================================
-# 3. 最新日志摘要
+# 2. 最新日志摘要
 # ============================================================================
 echo "============================================================================"
-echo "3️⃣  最新日志摘要（各训练最后10行）"
+echo "2️⃣  最新日志摘要（各训练最后10行）"
 echo "============================================================================"
 echo ""
 
 for seed in "${seeds[@]}"; do
-    log_file="$BASE_OUTPUT_DIR/full_model_seed${seed}/nohup.log"
+    # 首先尝试training.log，如果不存在则尝试nohup.log
+    log_file="$BASE_OUTPUT_DIR/full_model_seed${seed}/training.log"
+    if [ ! -f "$log_file" ] || [ ! -s "$log_file" ]; then
+        log_file="$BASE_OUTPUT_DIR/full_model_seed${seed}/nohup.log"
+    fi
 
     if [ -f "$log_file" ] && [ -s "$log_file" ]; then
         echo "----------------------------------------"
